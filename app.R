@@ -86,6 +86,7 @@ ui <- fluidPage(
              ),
              # figure 2
              tabPanel("Under 18 by Race",
+                      # I think input panels for all of these pages might have been better, save screen real estate
                       sidebarLayout(
                         sidebarPanel(
                           # Date Selection
