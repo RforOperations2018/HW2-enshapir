@@ -102,14 +102,14 @@ ui <- fluidPage(
                         sidebarPanel(
                           dateInput(inputId = "date", 
                                     label ="Choose a Date", 
-                                    value = "2015=10-01",
+                                    value = min(AgeRaceByDay$Date, na.rm = TRUE),
                                     min = min(AgeRaceByDay$Date, na.rm = TRUE),
                                     max = max(AgeRaceByDay$Date, na.rm = TRUE)
                           )
                         ),
                         # Output plot
                         mainPanel(
-                          plotOutput(outputId = "DateRacePlot")
+                          plotlyOutput(outputId = "DateRacePlot")
                         )
                       )
              ),
@@ -171,13 +171,12 @@ server <- function(input, output, session = session) {
       tooltip = "text")
   })  
   
-    output$DateRacePlot <- renderPlot({
+    output$DateRacePlot <- renderPlotly({
       dat3 <- swInput3()
       ggplotly(
         ggplot(dat3, aes(x=Current.Age, y= n, fill=Race)) +
                  geom_bar(stat="identity")+
-                 facet_wrap(~Race)+
-                 labs(x="Days Since Birth", y="Chick's Weight (gm)", title = "Chicken's Weight Since Birth")
+                 facet_wrap(~Race)
         )
     })  
     
@@ -187,14 +186,6 @@ server <- function(input, output, session = session) {
     showNotification("You have successfully reset to show all races", type = "message")
   })
   
-
-  output$DietAverages <- renderPlot({
-    #chickData <- filter(.data = Chicken.Weight, Chick == input$ChickToDisplay)
-    ggplot(data = DietAverages, aes(x = Diet, y = Avg_Weight, fill = Diet)) + 
-      geom_bar(stat = "identity")+
-      labs(x="Experimental Diet Type", y="Average Weight (gm) of Chicks", title = "Average Weight of Chicks by Diet Type")
-    
-  })
 }
 
 # Run the application 
