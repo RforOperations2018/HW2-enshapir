@@ -97,7 +97,7 @@ ui <- fluidPage(
                       )
              ),
              #figure 3
-             tabPanel("Race/Gender Makeup by Age",
+             tabPanel("Race Makeup by Age",
                       sidebarLayout(
                         sidebarPanel(
                           dateInput(inputId = "date", 
@@ -114,9 +114,10 @@ ui <- fluidPage(
                       )
              ),
              # Data Table
-             tabPanel("The Data",
+             tabPanel("Jail Data",
                       inputPanel(
-                        downloadButton("downloadData","Download Jail Data")
+                        downloadButton(outputId = "DataForDownload",
+                                       label = "Download Jail Data")
                       ),
                       fluidPage(DT::dataTableOutput("table"))
              )
@@ -149,6 +150,10 @@ server <- function(input, output, session = session) {
       # Slider Filter
       filter(Date == input$date) %>% 
       as.data.frame()
+  })
+  
+  swInput4 <- reactive({
+    JailTotal.server <- JailTotal
   })
 
   output$Raceplot <- renderPlotly({
@@ -185,6 +190,23 @@ server <- function(input, output, session = session) {
     updateSelectInput(session, "SelectedRace", selected = c("A", "B"))
     showNotification("You have successfully reset to show all races", type = "message")
   })
+  
+  #Output the Data Table
+  output$table <- DT::renderDataTable({
+    JailData <- swInput4()
+
+  })
+  
+  # Download the Jail Data
+  output$DataForDownload <- downloadHandler(
+    filename = function() {
+      paste("Jail_Data-", Sys.Date(), ".csv", sep="")
+    },
+    content = function(file) {
+      write.csv(swInput4(), file)
+    }
+  )
+  
   
 }
 
