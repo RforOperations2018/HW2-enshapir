@@ -86,10 +86,11 @@ ui <- fluidPage(
                         sidebarPanel(
                           # Date Selection
                           sliderInput("SelectedAge",
-                                      "Date:",
-                                      min = min(RaceByAge$Date, na.rm = TRUE),
-                                      max = max(RaceByAge$Date, na.rm = TRUE),
-                                      value = c(min(RaceByAge$Current.Age, na.rm = TRUE), max(RaceByAge$Current.Age, na.rm = TRUE)),
+                                      "Age:",
+                                      min = min(RaceByAge$Current.Age, na.rm = TRUE),
+                                      max = max(RaceByAge$Current.Age, na.rm = TRUE),
+                                      value = c(min(RaceByAge$Current.Age, na.rm = TRUE), 
+                                                max(RaceByAge$Current.Age, na.rm = TRUE)),
                                       step = 1)
                         ),
                         # Output plot
