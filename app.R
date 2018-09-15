@@ -49,8 +49,8 @@ AvgAgeByDayGender <- JailTotal %>%
 #for looking at race/age brekdown of under 18 population
 RaceByAge<- JailTotal %>% 
   filter(Current.Age>10&Current.Age<18) %>%  
-  count(Race, Current.Age)
-RaceByAge <- as.data.frame(RaceByAge)
+  count(Race, Current.Age) %>% as.data.frame()
+
 
 #for looking at race/age brekdown of under 18 population
 RaceAgeGender<- JailTotal %>% 
@@ -142,9 +142,8 @@ server <- function(input, output, session = session) {
   swInput2 <- reactive({
     under18 <- RaceByAge %>%
       # Slider Filter
-      filter(Current.Age >= input$SelectedAge[1] & Current.Age <= input$SelectedAge[2])
-    under18 <- as.data.frame(under18)
-    return(swInput2)
+      filter(Current.Age >= input$SelectedAge[1] & Current.Age <= input$SelectedAge[2]) %>% 
+      as.data.frame()
   })
 
   output$Raceplot <- renderPlotly({
