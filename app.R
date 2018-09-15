@@ -35,16 +35,13 @@ JailTotal <- bind_rows(Jail_Raw1, Jail_Raw2, Jail_Raw3, Jail_Raw4, Jail_Raw5)
 JailTotal <- JailTotal %>% filter(Current.Age != -1)
 
 
-#creating counts for graphing of number of indviduals by age, all indivduals without an age are removed. 
-AgeByDate <- JailTotal %>% 
-  filter(!is.na(Current.Age)) %>%  
-  count(Date, Current.Age)
-
 #looing at average age by gender
-AvgAgeByDayGender <- JailTotal %>% 
+AgeRaceByDay <- JailTotal %>% 
   filter(!is.na(Current.Age)) %>%  
-  group_by(Date, Gender) %>% 
-  summarise(MeanAge = mean(Current.Age))
+  count(Date, Race, Current.Age) %>% 
+  as.data.frame()
+
+AgeRaceByDay$Date <- as.Date(AgeRaceByDay$Date, "%m/%d/%Y")
 
 #for looking at race/age brekdown of under 18 population
 RaceByAge<- JailTotal %>% 
@@ -103,17 +100,16 @@ ui <- fluidPage(
              tabPanel("Race/Gender Makeup by Age",
                       sidebarLayout(
                         sidebarPanel(
-                          sliderInput(inputId = "DaysIncluded", 
-                                      label = "How Many Day to Include",
-                                      value = 22, 
-                                      min = 0, 
-                                      max =22,
-                                      step = 2
+                          dateInput(inputId = "date", 
+                                    label ="Choose a Date", 
+                                    value = "2015=10-01",
+                                    min = min(AgeRaceByDay$Date, na.rm = TRUE),
+                                    max = max(AgeRaceByDay$Date, na.rm = TRUE)
                           )
                         ),
                         # Output plot
                         mainPanel(
-                          plotOutput(outputId = "DietAverages")
+                          plotOutput(outputId = "DateRacePlot")
                         )
                       )
              ),
@@ -146,6 +142,14 @@ server <- function(input, output, session = session) {
       filter(Current.Age >= input$SelectedAge[1] & Current.Age <= input$SelectedAge[2]) %>% 
       as.data.frame()
   })
+  
+  # Filtered by date
+  swInput3 <- reactive({
+    AgeRaceByDay.server <- AgeRaceByDay %>%
+      # Slider Filter
+      filter(Date == input$date) %>% 
+      as.data.frame()
+  })
 
   output$Raceplot <- renderPlotly({
     dat <- swInput()
@@ -159,22 +163,31 @@ server <- function(input, output, session = session) {
   })  
   
     output$Under18plot <- renderPlotly({
-      dat <- swInput2()
-      ggplot(data = dat, aes(x = Race, y = n, fill = Race)) + geom_bar(stat = "identity")
+      dat2 <- swInput2()
+      ggplotly(
+      ggplot(data = dat2, aes(x = Race, y = n, fill = Race, text = paste0("<br>Race: ", Race,
+                                                                         "<br>Count: ", n))) + 
+        geom_bar(stat = "identity"),
+      tooltip = "text")
   })  
   
-  
+    output$DateRacePlot <- renderPlot({
+      dat3 <- swInput3()
+      ggplotly(
+        ggplot(dat3, aes(x=Current.Age, y= n, fill=Race)) +
+                 geom_bar(stat="identity")+
+                 facet_wrap(~Race)+
+                 labs(x="Days Since Birth", y="Chick's Weight (gm)", title = "Chicken's Weight Since Birth")
+        )
+    })  
+    
+    
   observeEvent(input$reset, {
     updateSelectInput(session, "SelectedRace", selected = c("A", "B"))
     showNotification("You have successfully reset to show all races", type = "message")
   })
   
-  output$Chickenplot <- renderPlot({
-    #chickData <- filter(.data = Chicken.Weight, Chick == input$ChickToDisplay) Broken or just didn't want to over do it??
-    ggplot(data = Chicken.Weight, aes(x = Time, y = weight, color = Diet)) + 
-      geom_point() + 
-      labs(x="Days Since Birth", y="Chick's Weight (gm)", title = "Chicken's Weight Since Birth")
-  })
+
   output$DietAverages <- renderPlot({
     #chickData <- filter(.data = Chicken.Weight, Chick == input$ChickToDisplay)
     ggplot(data = DietAverages, aes(x = Diet, y = Avg_Weight, fill = Diet)) + 
