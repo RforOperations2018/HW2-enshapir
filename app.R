@@ -47,14 +47,14 @@ AvgAgeByDayGender <- JailTotal %>%
   summarise(MeanAge = mean(Current.Age))
 
 #for looking at race/age brekdown of under 18 population
-RaceandAgeByDate<- JailTotal %>% 
-  filter(!is.na(Current.Age<18)) %>%  
-  group_by(Date, Gender, Race) %>% 
-  summarise(MeanAge = mean(Current.Age))
+RaceByAge<- JailTotal %>% 
+  filter(Current.Age>10&Current.Age<18) %>%  
+  count(Race, Current.Age)
+RaceByAge <- as.data.frame(RaceByAge)
 
 #for looking at race/age brekdown of under 18 population
 RaceAgeGender<- JailTotal %>% 
-  filter(!is.na(Current.Age<18)) %>%  
+  filter(!is.na(Current.Age)) %>%  
   group_by(Race, Current.Age, Gender) %>% 
   summarise(MeanAge = mean(Current.Age))
 
@@ -80,25 +80,24 @@ ui <- fluidPage(
                         )
                       )
              ),
-             # # figure 2
-             # tabPanel("Race of Detainees",
-             #          sidebarLayout(
-             #            sidebarPanel(
-             #              # Birth Selection
-             #              sliderInput("birthSelect",
-             #                          "Birth Year:",
-             #                          min = min(starwars.load$birth_year, na.rm = T),
-             #                          max = max(starwars.load$birth_year, na.rm = T),
-             #                          value = c(min(starwars.load$birth_year, na.rm = T), max(starwars.load$birth_year, na.rm = T)),
-             #                          step = 1),
-             #              actionButton("reset", "Reset Filters", icon = icon("refresh"))
-             #            ),
-             #            # Output plot
-             #            mainPanel(
-             #              plotlyOutput("plot")
-             #            )
-             #          )
-             # ),
+             # figure 2
+             tabPanel("Under 18 by Race",
+                      sidebarLayout(
+                        sidebarPanel(
+                          # Date Selection
+                          sliderInput("SelectedAge",
+                                      "Date:",
+                                      min = min(RaceByAge$Date, na.rm = TRUE),
+                                      max = max(RaceByAge$Date, na.rm = TRUE),
+                                      value = c(min(RaceByAge$Current.Age, na.rm = TRUE), max(RaceByAge$Current.Age, na.rm = TRUE)),
+                                      step = 1)
+                        ),
+                        # Output plot
+                        mainPanel(
+                          plotlyOutput("Under18plot")
+                        )
+                      )
+             ),
              #figure 3
              tabPanel("Race/Gender Makeup by Age",
                       sidebarLayout(
@@ -129,7 +128,7 @@ ui <- fluidPage(
 
 # Define server logic
 server <- function(input, output, session = session) {
-  # Filtered Starwars data
+  # Filtered Race Age Data
   swInput <- reactive({
     # Race Filter
     if (length(input$SelectedRace) > 0 ) {
@@ -139,6 +138,14 @@ server <- function(input, output, session = session) {
     return( RaceAgeGender.server)
   })
 
+  # Filtered under 18 Date
+  swInput2 <- reactive({
+    under18 <- RaceByAge %>%
+      # Slider Filter
+      filter(Current.Age >= input$SelectedAge[1] & Current.Age <= input$SelectedAge[2])
+    under18 <- as.data.frame(under18)
+    return(swInput2)
+  })
 
   output$Raceplot <- renderPlotly({
     dat <- swInput()
@@ -149,6 +156,11 @@ server <- function(input, output, session = session) {
         geom_jitter()+
         guides(color = FALSE)
       , tooltip = "text")
+  })  
+  
+    output$Under18plot <- renderPlotly({
+      dat <- swInput2()
+      ggplot(data = dat, aes(x = Race, y = n, fill = Race)) + geom_bar(stat = "identity")
   })  
   
   
