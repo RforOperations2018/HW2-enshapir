@@ -4,12 +4,15 @@
 
 library(shiny)
 library(tidyverse)
+library(plotly)
+library(DT)
 
 #quarries the system for the directory of this file and then sets the directory of the file. 
 current_file_path <- dirname(rstudioapi::getSourceEditorContext()$path)
 setwd(current_file_path)
 
 #data from Western PA 
+#https://data.wprdc.org/dataset/allegheny-county-jail-daily-census
 
 #file path names of the data used
 JailFile1 <- file.path('open_data_files', '8fb43d9a-9fb9-431d-93d2-9be7330dc846.csv', fsep = .Platform$file.sep)
@@ -28,43 +31,146 @@ Jail_Raw5 <- read.csv(file = JailFile5, header = TRUE, sep = ",")
 #combine all the files
 JailTotal <- bind_rows(Jail_Raw1, Jail_Raw2, Jail_Raw3, Jail_Raw4, Jail_Raw5)
 
+#removing row with age value of -1 which is not possible
+JailTotal <- JailTotal %>% filter(Current.Age != -1)
+
+
+#creating counts for graphing of number of indviduals by age, all indivduals without an age are removed. 
+AgeByDate <- JailTotal %>% 
+  filter(!is.na(Current.Age)) %>%  
+  count(Date, Current.Age)
+
+#looing at average age by gender
+AvgAgeByDayGender <- JailTotal %>% 
+  filter(!is.na(Current.Age)) %>%  
+  group_by(Date, Gender) %>% 
+  summarise(MeanAge = mean(Current.Age))
+
+#for looking at race/age brekdown of under 18 population
+RaceandAgeByDate<- JailTotal %>% 
+  filter(!is.na(Current.Age<18)) %>%  
+  group_by(Date, Gender, Race) %>% 
+  summarise(MeanAge = mean(Current.Age))
+
+#for looking at race/age brekdown of under 18 population
+RaceAgeGender<- JailTotal %>% 
+  filter(!is.na(Current.Age<18)) %>%  
+  group_by(Race, Current.Age, Gender) %>% 
+  summarise(MeanAge = mean(Current.Age))
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
-   
-   # Application title
-   titlePanel("Old Faithful Geyser Data"),
-   
-   # Sidebar with a slider input for number of bins 
-   sidebarLayout(
-      sidebarPanel(
-         sliderInput("bins",
-                     "Number of bins:",
-                     min = 1,
-                     max = 50,
-                     value = 30)
-      ),
-      
-      # Show a plot of the generated distribution
-      mainPanel(
-         plotOutput("distPlot")
-      )
-   )
+  
+  navlistPanel("State of Allegheny County Jail", 
+             tabPanel("Average Age of Detainees by Race",
+                      sidebarLayout(
+                        sidebarPanel(
+                          # Race Select
+                          selectInput("SelectedRace",
+                                      "Race:",
+                                      choices = sort(unique(RaceAgeGender$Race)),
+                                      multiple = T,
+                                      selectize = T,
+                                      selected = c("A", "B")),
+                          actionButton("reset", "Reset Filters", icon = icon("refresh"))
+                        ),
+                        # Output plot
+                        mainPanel(
+                          plotlyOutput("Raceplot")
+                        )
+                      )
+             ),
+             # # figure 2
+             # tabPanel("Race of Detainees",
+             #          sidebarLayout(
+             #            sidebarPanel(
+             #              # Birth Selection
+             #              sliderInput("birthSelect",
+             #                          "Birth Year:",
+             #                          min = min(starwars.load$birth_year, na.rm = T),
+             #                          max = max(starwars.load$birth_year, na.rm = T),
+             #                          value = c(min(starwars.load$birth_year, na.rm = T), max(starwars.load$birth_year, na.rm = T)),
+             #                          step = 1),
+             #              actionButton("reset", "Reset Filters", icon = icon("refresh"))
+             #            ),
+             #            # Output plot
+             #            mainPanel(
+             #              plotlyOutput("plot")
+             #            )
+             #          )
+             # ),
+             #figure 3
+             tabPanel("Race/Gender Makeup by Age",
+                      sidebarLayout(
+                        sidebarPanel(
+                          sliderInput(inputId = "DaysIncluded", 
+                                      label = "How Many Day to Include",
+                                      value = 22, 
+                                      min = 0, 
+                                      max =22,
+                                      step = 2
+                          )
+                        ),
+                        # Output plot
+                        mainPanel(
+                          plotOutput(outputId = "DietAverages")
+                        )
+                      )
+             ),
+             # Data Table
+             tabPanel("The Data",
+                      inputPanel(
+                        downloadButton("downloadData","Download Jail Data")
+                      ),
+                      fluidPage(DT::dataTableOutput("table"))
+             )
+  )
 )
 
-# Define server logic required to draw a histogram
+# Define server logic
 server <- function(input, output) {
-   
-   output$distPlot <- renderPlot({
-      # generate bins based on input$bins from ui.R
-      x    <- faithful[, 2] 
-      bins <- seq(min(x), max(x), length.out = input$bins + 1)
-      
-      # draw the histogram with the specified number of bins
-      hist(x, breaks = bins, col = 'darkgray', border = 'white')
-   })
+  # Filtered Starwars data
+  swInput <- reactive({
+    # Race Filter
+    if (length(input$SelectedRace) > 0 ) {
+      RaceAgeGender.server <- subset(RaceAgeGender, Race %in% input$SelectedRace)
+    }
+    
+    return( RaceAgeGender.server)
+  })
+
+
+  output$Raceplot <- renderPlotly({
+    dat <- swInput()
+    ggplotly(
+      ggplot(data = dat, aes(x = Gender, y = MeanAge, color = Race, text = paste0("<br>Race: ", Race,
+                                                                                  "<br>Gender: ", Gender,
+                                                                                  "<br>Mean Age: ", MeanAge))) + 
+        geom_jitter()+
+        guides(color = FALSE)
+      , tooltip = "text")
+  })  
+  
+  
+  observeEvent(input$reset, {
+    updateSelectInput(session, "SelectedRace", selected = c("A", "B"))
+    showNotification("You have successfully reset to show all races", type = "message")
+  })
+  
+  output$Chickenplot <- renderPlot({
+    #chickData <- filter(.data = Chicken.Weight, Chick == input$ChickToDisplay) Broken or just didn't want to over do it??
+    ggplot(data = Chicken.Weight, aes(x = Time, y = weight, color = Diet)) + 
+      geom_point() + 
+      labs(x="Days Since Birth", y="Chick's Weight (gm)", title = "Chicken's Weight Since Birth")
+  })
+  output$DietAverages <- renderPlot({
+    #chickData <- filter(.data = Chicken.Weight, Chick == input$ChickToDisplay)
+    ggplot(data = DietAverages, aes(x = Diet, y = Avg_Weight, fill = Diet)) + 
+      geom_bar(stat = "identity")+
+      labs(x="Experimental Diet Type", y="Average Weight (gm) of Chicks", title = "Average Weight of Chicks by Diet Type")
+    
+  })
 }
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
