@@ -128,7 +128,7 @@ ui <- fluidPage(
 )
 
 # Define server logic
-server <- function(input, output) {
+server <- function(input, output, session = session) {
   # Filtered Starwars data
   swInput <- reactive({
     # Race Filter
